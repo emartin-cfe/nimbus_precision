@@ -17,7 +17,9 @@ my $web_server = "/var/www/html/nimbus_precision/images";
 system("rm $web_server/*.png");
 
 foreach my $template (('Well', 'Column', 'Row')) {
-	foreach my $statistic (('Average', 'CV')) {
+	foreach my $statistic (('Average', 'CV', 'Paired_Ratio')) {
+
+		if (($statistic eq 'Paired_Ratio') && ($template eq 'Well')) { next; }
 
 		# Generate the csv from the database
 		my $csv = "$root/" . $template . "_" . $statistic . ".csv";

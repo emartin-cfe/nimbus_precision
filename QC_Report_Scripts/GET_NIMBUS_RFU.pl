@@ -4,14 +4,44 @@
 # DETAILS:	Script treats multiple results from the same date with the same protocol as replicates.
 
 use strict;
-my $syntax_description = "Usage: $0 <'Column', 'Row', or 'Well'> <'Average' or 'CV' or 'Paired_Ratio'>\n";
+my $syntax_description = "Usage: $0 <'Column', 'Row', or 'Well'> <'Average' or 'CV' or 'Paired_Ratio' or 'Plate_Normalized'>\n";
 if (scalar(@ARGV) != 2) { die $syntax_description; }
 
 use DBI;
 require "/var/www/cgi-bin/QC_Report_Scripts/setup_oracle_authentication.pl";
+#require "setup_oracle_authentication.pl";
 my ($env_oracle_home, $host, $port, $sid, $user, $password) = activateOracle();
 my $db=DBI->connect("dbi:Oracle:host=$host;sid=$sid;port=$port", $user, $password);
 
+if(($ARGV[0] eq 'Well') && ($ARGV[1] eq 'Plate_Normalized')) {
+
+	my $query = "SELECT A.RUNDATE, WELL, well_average/plate_average normalized_rfu " .
+				"FROM (" .
+					"SELECT RUNDATE, AVG(RFU) plate_average " .
+					"FROM specimen.lab_pcr_quant " .
+					"WHERE protocol = 'NIMBUS_Precision_DTX880_Fluor_FI_Top_96well_FullPlate' " .
+					"GROUP BY RUNDATE) A " .
+				"JOIN ( " .
+					"SELECT RUNDATE, WELL, AVG(RFU) well_average FROM specimen.lab_pcr_quant " .
+					"WHERE protocol = 'NIMBUS_Precision_DTX880_Fluor_FI_Top_96well_FullPlate' " .
+					"GROUP BY RUNDATE, WELL " .
+					"ORDER BY rundate, substr(well,1,1), CAST(substr(well,2,2) AS INT) ) B " .
+				"ON A.RUNDATE = B.RUNDATE";
+
+	my $sth = $db->prepare($query);
+	$sth->execute();
+	print "date,group,statistic\n";
+	while (my @row = $sth->fetchrow_array()) {
+		my ($date, $well, $statistic) = @row;
+		print "$date,$well,$statistic\n";
+		}   
+
+	# Get the avg for a timepoint
+	exit 1;
+	}
+
+
+# Get the average of adjacent positive columns/rows, and divide them to get the dynamic range
 if ($ARGV[1] eq 'Paired_Ratio') {
 	my ($location, $order_by, $protocol, $constraint_positive, $constraint_negative);
 	my $statistic = "ROUND(AVG(RFU),0)";

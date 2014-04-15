@@ -17,9 +17,11 @@ my $web_server = "/var/www/html/nimbus_precision/images";
 system("rm $web_server/*.png");
 
 foreach my $template (('Well', 'Column', 'Row')) {
-	foreach my $statistic (('Average', 'CV', 'Paired_Ratio')) {
+	foreach my $statistic (('Average', 'CV', 'Paired_Ratio', 'Plate_Normalized')) {
 
 		if (($statistic eq 'Paired_Ratio') && ($template eq 'Well')) { next; }
+
+		if (($statistic eq 'Plate_Normalized') && ($template ne "Well")) { next; }
 
 		# Generate the csv from the database
 		my $csv = "$root/" . $template . "_" . $statistic . ".csv";
@@ -29,6 +31,11 @@ foreach my $template (('Well', 'Column', 'Row')) {
 		my $png = $csv;
 		$png =~ s/csv$/png/;
 		my $R_script = "$root/QC_Report_Scripts/$template.R";
+
+		if ($statistic eq 'Plate_Normalized') { $R_script = "$root/QC_Report_Scripts/wells_relative_to_average.R"; }
+
+		#print ("\n$R $R_script $csv $statistic $png\n");
+
 		system("$R $R_script $csv $statistic $png > /dev/null");
 
 		# Move the png files to the webserver + delete the csv
